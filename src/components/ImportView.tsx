@@ -13,6 +13,10 @@ function tagLine(values: string[]): string {
   return values.length > 0 ? values.slice(0, 3).join(" / ") : "未标注类型";
 }
 
+function artistRegionLine(artist: Artist): string {
+  return [artist.country, artist.countryName].filter(Boolean).join(" · ");
+}
+
 function CoverImage({ album }: { album: Album }) {
   const [failed, setFailed] = useState(false);
   const initial = album.title.trim().slice(0, 1).toUpperCase() || "M";
@@ -168,7 +172,7 @@ function ImportView({ cacheStore, favoriteIds, onAddSongs }: ImportViewProps) {
               <span>
                 <strong>{artist.name}</strong>
                 <small>
-                  {[artist.type, artist.country, artist.disambiguation].filter(Boolean).join(" · ") ||
+                  {[artist.type, artistRegionLine(artist), artist.disambiguation].filter(Boolean).join(" · ") ||
                     "MusicBrainz artist"}
                 </small>
               </span>
@@ -209,14 +213,14 @@ function ImportView({ cacheStore, favoriteIds, onAddSongs }: ImportViewProps) {
         <div className="panel-heading">
           <div>
             <p className="eyebrow">Releases</p>
-            <h2>{selectedArtist ? `${selectedArtist.name} 的专辑` : "专辑"}</h2>
+            <h2>{selectedArtist ? `${selectedArtist.name} 的专辑 / EP` : "专辑 / EP"}</h2>
           </div>
           {albumLoading && <LoaderCircle className="spin muted-icon" size={20} />}
         </div>
 
-        {!selectedArtist && <p className="empty-state">选择音乐人后这里只展示专辑；单曲请在左侧直接搜索。</p>}
+        {!selectedArtist && <p className="empty-state">选择音乐人后这里只展示专辑和 EP；单曲请在左侧直接搜索。</p>}
         {selectedArtist && !albumLoading && albums.length === 0 && (
-          <p className="empty-state">没有找到可导入的非 Live 专辑。</p>
+          <p className="empty-state">没有找到可导入的非 Live 专辑或 EP。</p>
         )}
 
         <div className="album-grid">

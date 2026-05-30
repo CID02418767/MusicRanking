@@ -170,12 +170,24 @@ function coverUrlForReleaseGroup(id: string): string {
   return `${COVER_BASE}/release-group/${id}/front-250`;
 }
 
+function normalizeCountryCode(country: string | undefined): string | undefined {
+  if (!country) {
+    return country;
+  }
+
+  return ["TW", "HK", "MO"].includes(country.toUpperCase()) ? "CN" : country;
+}
+
+function countryNameForCode(country: string | undefined): string | undefined {
+  return country?.toUpperCase() === "CN" ? "China" : undefined;
+}
+
 function hasSecondaryType(group: { "secondary-types"?: string[] }, type: string): boolean {
   return group["secondary-types"]?.some((value) => value.toLowerCase() === type.toLowerCase()) ?? false;
 }
 
-function isArtistAlbum(group: { "primary-type"?: string; "secondary-types"?: string[] }): boolean {
-  return group["primary-type"] === "Album" && !hasSecondaryType(group, "Live");
+function isArtistAlbumOrEp(group: { "primary-type"?: string; "secondary-types"?: string[] }): boolean {
+  return ["Album", "EP"].includes(group["primary-type"] ?? "") && !hasSecondaryType(group, "Live");
 }
 
 function isDirectSingle(group: { "primary-type"?: string; "secondary-types"?: string[] }): boolean {
@@ -205,13 +217,17 @@ export async function searchArtists(query: string, cache: CacheStore): Promise<A
     SEARCH_TTL_MS,
   );
 
-  return (data.artists ?? []).map((artist) => ({
-    id: artist.id,
-    name: artist.name,
-    disambiguation: artist.disambiguation,
-    country: artist.country,
-    type: artist.type,
-  }));
+  return (data.artists ?? []).map((artist) => {
+    const country = normalizeCountryCode(artist.country);
+    return {
+      id: artist.id,
+      name: artist.name,
+      disambiguation: artist.disambiguation,
+      country,
+      countryName: countryNameForCode(country),
+      type: artist.type,
+    };
+  });
 }
 
 export async function fetchArtistAlbums(artist: Artist, cache: CacheStore): Promise<Album[]> {
@@ -230,7 +246,7 @@ export async function fetchArtistAlbums(artist: Artist, cache: CacheStore): Prom
   );
 
   return (data["release-groups"] ?? [])
-    .filter(isArtistAlbum)
+    .filter(isArtistAlbumOrEp)
     .map((group) => ({
       id: group.id,
       artistId: artist.id,

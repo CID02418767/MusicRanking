@@ -31,6 +31,7 @@ export interface Artist {
   name: string;
   disambiguation?: string;
   country?: string;
+  countryName?: string;
   type?: string;
 }
 
