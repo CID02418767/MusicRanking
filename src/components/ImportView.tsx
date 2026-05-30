@@ -13,8 +13,18 @@ function tagLine(values: string[]): string {
   return values.length > 0 ? values.slice(0, 3).join(" / ") : "未标注类型";
 }
 
+function normalizeDisplayCountry(country: string | undefined): string | undefined {
+  if (!country) {
+    return country;
+  }
+
+  return ["TW", "HK", "MO"].includes(country.toUpperCase()) ? "CN" : country;
+}
+
 function artistRegionLine(artist: Artist): string {
-  return [artist.country, artist.countryName].filter(Boolean).join(" · ");
+  const country = normalizeDisplayCountry(artist.country);
+  const countryName = country?.toUpperCase() === "CN" ? "China" : artist.countryName;
+  return [country, countryName].filter(Boolean).join(" · ");
 }
 
 function CoverImage({ album }: { album: Album }) {
