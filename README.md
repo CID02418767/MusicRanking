@@ -1,10 +1,11 @@
-# musicranking
+# MusicRanking
 
 一个完全自用、无商业成分的极简音乐评分网站。项目使用 Vite、React 和 TypeScript，可部署到 GitHub Pages。
 
 ## 功能
 
-- 搜索歌手/乐队并从 MusicBrainz 导入专辑、EP、单曲信息。
+- 搜索歌手/乐队并从 MusicBrainz 导入非 Live 专辑信息。
+- 直接搜索单曲，并从单曲结果中导入曲目。
 - 使用 Cover Art Archive 展示封面。
 - 打开专辑查看曲目，并把单曲或整张专辑加入个人收藏。
 - 对歌词、作曲、编曲制作、演唱演奏、个人喜好五个维度打分。
