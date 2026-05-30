@@ -32,6 +32,8 @@ function normalizeFavorite(value: unknown): FavoriteSong | null {
     song: {
       ...song,
       position: String(song.position ?? ""),
+      artistCountry: typeof song.artistCountry === "string" ? song.artistCountry : undefined,
+      artistCountryName: typeof song.artistCountryName === "string" ? song.artistCountryName : undefined,
       genres: Array.isArray(song.genres) ? song.genres : [],
       tags: Array.isArray(song.tags) ? song.tags : [],
       albumGenres: Array.isArray(song.albumGenres) ? song.albumGenres : [],

@@ -39,6 +39,8 @@ export interface Album {
   id: string;
   artistId: string;
   artistName: string;
+  artistCountry?: string;
+  artistCountryName?: string;
   title: string;
   type: string;
   firstReleaseDate?: string;
@@ -51,6 +53,8 @@ export interface Song {
   id: string;
   title: string;
   artistName: string;
+  artistCountry?: string;
+  artistCountryName?: string;
   albumTitle: string;
   albumId: string;
   position: string;

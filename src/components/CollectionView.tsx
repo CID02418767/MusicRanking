@@ -24,6 +24,28 @@ function tagsForAlbum(favorite: FavoriteSong): string[] {
   return uniqueSorted([...favorite.song.albumGenres, ...favorite.song.albumTags]);
 }
 
+function normalizeCountryCode(country: string | undefined): string | undefined {
+  if (!country) {
+    return country;
+  }
+
+  return ["TW", "HK", "MO"].includes(country.toUpperCase()) ? "CN" : country.toUpperCase();
+}
+
+function countryCodeForFavorite(favorite: FavoriteSong): string {
+  return normalizeCountryCode(favorite.song.artistCountry) ?? "__unknown";
+}
+
+function countryLabelForFavorite(favorite: FavoriteSong): string {
+  const country = countryCodeForFavorite(favorite);
+  if (country === "__unknown") {
+    return "未知";
+  }
+
+  const countryName = country === "CN" ? "China" : favorite.song.artistCountryName;
+  return [country, countryName].filter(Boolean).join(" · ");
+}
+
 function CollectionView({
   favorites,
   weights,
@@ -34,10 +56,16 @@ function CollectionView({
   const [query, setQuery] = useState("");
   const [songTag, setSongTag] = useState("");
   const [albumTag, setAlbumTag] = useState("");
+  const [country, setCountry] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(favorites[0]?.song.id ?? null);
 
   const songTags = useMemo(() => uniqueSorted(favorites.flatMap(tagsForSong)), [favorites]);
   const albumTags = useMemo(() => uniqueSorted(favorites.flatMap(tagsForAlbum)), [favorites]);
+  const countryOptions = useMemo(() => {
+    return Array.from(
+      new Map(favorites.map((favorite) => [countryCodeForFavorite(favorite), countryLabelForFavorite(favorite)])).entries(),
+    ).sort((a, b) => a[1].localeCompare(b[1], "zh-CN"));
+  }, [favorites]);
 
   const visibleFavorites = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -51,10 +79,11 @@ function CollectionView({
         const matchesQuery = !normalizedQuery || text.includes(normalizedQuery);
         const matchesSongTag = !songTag || tagsForSong(favorite).includes(songTag);
         const matchesAlbumTag = !albumTag || tagsForAlbum(favorite).includes(albumTag);
-        return matchesQuery && matchesSongTag && matchesAlbumTag;
+        const matchesCountry = !country || countryCodeForFavorite(favorite) === country;
+        return matchesQuery && matchesSongTag && matchesAlbumTag && matchesCountry;
       })
       .sort((a, b) => calculateScore(b.ratings, weights) - calculateScore(a.ratings, weights));
-  }, [albumTag, favorites, query, songTag, weights]);
+  }, [albumTag, country, favorites, query, songTag, weights]);
 
   const selectedFavorite =
     favorites.find((favorite) => favorite.song.id === selectedId) ?? visibleFavorites[0] ?? null;
@@ -119,11 +148,23 @@ function CollectionView({
               ))}
             </select>
           </label>
-          {(query || songTag || albumTag) && (
+          <label className="field-label">
+            国家/地区
+            <select value={country} onChange={(event) => setCountry(event.target.value)}>
+              <option value="">全部国家/地区</option>
+              {countryOptions.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {(query || songTag || albumTag || country) && (
             <button className="ghost-button clear-filter" type="button" onClick={() => {
               setQuery("");
               setSongTag("");
               setAlbumTag("");
+              setCountry("");
             }}>
               <X size={16} />
               <span>清除</span>
@@ -150,7 +191,7 @@ function CollectionView({
                 <div className="song-main">
                   <strong>{favorite.song.title}</strong>
                   <small>
-                    {favorite.song.artistName} · {favorite.song.albumTitle}
+                    {favorite.song.artistName} · {favorite.song.albumTitle} · {countryLabelForFavorite(favorite)}
                   </small>
                   {allTags.length > 0 && (
                     <span className="mini-tags">
