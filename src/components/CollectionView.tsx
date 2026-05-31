@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { Search, SlidersHorizontal, Star, Tag, Trash2, X } from "lucide-react";
-import type { FavoriteSong, RatingKey, RatingWeights } from "../types";
+import { CheckSquare, Search, SlidersHorizontal, Star, Tag, Trash2, X } from "lucide-react";
+import type { FavoriteSong, RatingKey, Ratings, RatingWeights } from "../types";
 import { ratingKeys, ratingLabels } from "../types";
-import { calculateScore, clampRating, formatScore } from "../lib/scoring";
+import { calculateScore, clampRating, defaultRatings, formatScore } from "../lib/scoring";
 
 interface CollectionViewProps {
   favorites: FavoriteSong[];
@@ -58,6 +58,8 @@ function CollectionView({
   const [albumTag, setAlbumTag] = useState("");
   const [country, setCountry] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(favorites[0]?.song.id ?? null);
+  const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(() => new Set());
+  const [batchRatings, setBatchRatings] = useState<Ratings>(defaultRatings);
 
   const songTags = useMemo(() => uniqueSorted(favorites.flatMap(tagsForSong)), [favorites]);
   const albumTags = useMemo(() => uniqueSorted(favorites.flatMap(tagsForAlbum)), [favorites]);
@@ -87,6 +89,9 @@ function CollectionView({
 
   const selectedFavorite =
     favorites.find((favorite) => favorite.song.id === selectedId) ?? visibleFavorites[0] ?? null;
+  const visibleIds = useMemo(() => visibleFavorites.map((favorite) => favorite.song.id), [visibleFavorites]);
+  const visibleBatchSelectedCount = visibleIds.filter((id) => batchSelectedIds.has(id)).length;
+  const allVisibleSelected = visibleIds.length > 0 && visibleBatchSelectedCount === visibleIds.length;
 
   function updateCustomTags(value: string) {
     if (!selectedFavorite) {
@@ -100,6 +105,43 @@ function CollectionView({
         .filter(Boolean),
     );
     onUpdateFavorite(selectedFavorite.song.id, { customTags: tags });
+  }
+
+  function toggleBatchSelection(songId: string) {
+    setBatchSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(songId)) {
+        next.delete(songId);
+      } else {
+        next.add(songId);
+      }
+      return next;
+    });
+  }
+
+  function toggleVisibleBatchSelection() {
+    setBatchSelectedIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        visibleIds.forEach((id) => next.delete(id));
+      } else {
+        visibleIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  function updateBatchRating(key: RatingKey, value: number) {
+    setBatchRatings((current) => ({
+      ...current,
+      [key]: clampRating(value),
+    }));
+  }
+
+  function applyBatchRatings() {
+    batchSelectedIds.forEach((songId) => {
+      onUpdateFavorite(songId, { ratings: batchRatings });
+    });
   }
 
   return (
@@ -172,6 +214,16 @@ function CollectionView({
           )}
         </div>
 
+        {visibleFavorites.length > 0 && (
+          <div className="batch-toolbar">
+            <button className="ghost-button compact-button" type="button" onClick={toggleVisibleBatchSelection}>
+              <CheckSquare size={16} />
+              <span>{allVisibleSelected ? "取消当前选择" : "选择当前结果"}</span>
+            </button>
+            <span>{batchSelectedIds.size} 首待批量评分</span>
+          </div>
+        )}
+
         {visibleFavorites.length === 0 && <p className="empty-state">没有匹配的收藏歌曲。</p>}
 
         <div className="song-list">
@@ -181,14 +233,19 @@ function CollectionView({
             const allTags = tagsForSong(favorite);
 
             return (
-              <button
+              <div
                 key={favorite.song.id}
                 className={active ? "song-row active" : "song-row"}
-                type="button"
-                onClick={() => setSelectedId(favorite.song.id)}
               >
+                <label className="row-check" title="选择收藏歌曲">
+                  <input
+                    type="checkbox"
+                    checked={batchSelectedIds.has(favorite.song.id)}
+                    onChange={() => toggleBatchSelection(favorite.song.id)}
+                  />
+                </label>
                 <span className="rank-number">{index + 1}</span>
-                <div className="song-main">
+                <button className="song-select-button" type="button" onClick={() => setSelectedId(favorite.song.id)}>
                   <strong>{favorite.song.title}</strong>
                   <small>
                     {favorite.song.artistName} · {favorite.song.albumTitle} · {countryLabelForFavorite(favorite)}
@@ -200,9 +257,9 @@ function CollectionView({
                       ))}
                     </span>
                   )}
-                </div>
+                </button>
                 <span className="score-badge">{formatScore(score)}</span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -221,6 +278,48 @@ function CollectionView({
 
         {selectedFavorite && (
           <div className="editor-content">
+            <div className="batch-panel">
+              <div className="selected-song">
+                <CheckSquare size={18} />
+                <div>
+                  <strong>批量评分</strong>
+                  <small>将五项评分应用到已勾选的收藏歌曲</small>
+                </div>
+                <span>{batchSelectedIds.size}</span>
+              </div>
+              <div className="rating-stack">
+                {ratingKeys.map((key) => (
+                  <label key={key} className="rating-control">
+                    <span>
+                      {ratingLabels[key]}
+                      <strong>{batchRatings[key].toFixed(1)}</strong>
+                    </span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      step="0.1"
+                      value={batchRatings[key]}
+                      onChange={(event) => updateBatchRating(key, clampRating(event.target.value))}
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      step="0.1"
+                      value={batchRatings[key]}
+                      onFocus={(event) => event.currentTarget.select()}
+                      onChange={(event) => updateBatchRating(key, clampRating(event.target.value))}
+                    />
+                  </label>
+                ))}
+              </div>
+              <button className="secondary-button" type="button" onClick={applyBatchRatings} disabled={batchSelectedIds.size === 0}>
+                <CheckSquare size={17} />
+                <span>应用到 {batchSelectedIds.size} 首</span>
+              </button>
+            </div>
+
             <div className="selected-song">
               <Star size={18} />
               <div>

@@ -106,6 +106,12 @@ button:disabled {
   font-weight: 700;
 }
 
+.compact-button {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 0.84rem;
+}
+
 .tab-button {
   background: transparent;
   color: #65716c;
@@ -411,10 +417,23 @@ small {
 }
 
 .track-row {
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-columns: auto 44px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   padding: 10px;
+}
+
+.row-check {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+}
+
+.row-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: #2f6d52;
 }
 
 .track-position,
@@ -443,10 +462,32 @@ small {
 }
 
 .song-row {
-  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-columns: auto 42px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 12px;
+}
+
+.song-select-button {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: #53615b;
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .score-badge {
@@ -463,6 +504,15 @@ small {
 .editor-content {
   display: grid;
   gap: 16px;
+}
+
+.batch-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #dfe4df;
+  border-radius: 8px;
+  background: #fbfcfa;
+  padding: 12px;
 }
 
 .selected-song {

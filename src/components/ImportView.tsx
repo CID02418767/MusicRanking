@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
-import { Disc3, Library, ListMusic, LoaderCircle, Plus, Search, UserRound } from "lucide-react";
+import { CheckSquare, Disc3, Library, ListMusic, LoaderCircle, Plus, Search, UserRound } from "lucide-react";
 import type { Album, Artist, CacheStore, Song } from "../types";
 import { fetchAlbumTracks, fetchArtistAlbums, searchArtists, searchSingleReleases } from "../lib/musicbrainz";
 
@@ -50,6 +50,7 @@ function ImportView({ cacheStore, favoriteIds, onAddSongs }: ImportViewProps) {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [tracks, setTracks] = useState<Song[]>([]);
+  const [selectedTrackIds, setSelectedTrackIds] = useState<Set<string>>(() => new Set());
   const [artistLoading, setArtistLoading] = useState(false);
   const [albumLoading, setAlbumLoading] = useState(false);
   const [trackLoading, setTrackLoading] = useState(false);
@@ -60,6 +61,12 @@ function ImportView({ cacheStore, favoriteIds, onAddSongs }: ImportViewProps) {
   const selectedAlbumFavoriteCount = useMemo(() => {
     return tracks.filter((track) => favoriteIds.has(track.id)).length;
   }, [favoriteIds, tracks]);
+
+  const selectedTracks = useMemo(() => {
+    return tracks.filter((track) => selectedTrackIds.has(track.id));
+  }, [selectedTrackIds, tracks]);
+
+  const allTracksSelected = tracks.length > 0 && selectedTracks.length === tracks.length;
 
   const visibleAlbums = useMemo(() => {
     return albums.slice(0, visibleAlbumCount);
@@ -75,14 +82,18 @@ function ImportView({ cacheStore, favoriteIds, onAddSongs }: ImportViewProps) {
     setVisibleAlbumCount(36);
     setSelectedAlbum(null);
     setTracks([]);
+    setSelectedTrackIds(new Set());
 
     try {
-      const [artistResults, releaseResults] = await Promise.all([
+      const [artistResults, releaseResults] = await Promise.allSettled([
         searchArtists(query, cacheStore),
         searchSingleReleases(query, cacheStore),
       ]);
-      setArtists(artistResults);
-      setSingleResults(releaseResults);
+      setArtists(artistResults.status === "fulfilled" ? artistResults.value : []);
+      setSingleResults(releaseResults.status === "fulfilled" ? releaseResults.value : []);
+      if (artistResults.status === "rejected" && releaseResults.status === "rejected") {
+        throw artistResults.reason;
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "搜索失败");
     } finally {
@@ -95,6 +106,7 @@ function ImportView({ cacheStore, favoriteIds, onAddSongs }: ImportViewProps) {
     setSelectedArtist(artist);
     setSelectedAlbum(null);
     setTracks([]);
+    setSelectedTrackIds(new Set());
     setVisibleAlbumCount(36);
     setAlbumLoading(true);
 
@@ -111,6 +123,7 @@ function ImportView({ cacheStore, favoriteIds, onAddSongs }: ImportViewProps) {
     setError(null);
     setSelectedAlbum(album);
     setTracks([]);
+    setSelectedTrackIds(new Set());
     setTrackLoading(true);
 
     try {
@@ -136,6 +149,35 @@ function ImportView({ cacheStore, favoriteIds, onAddSongs }: ImportViewProps) {
     } finally {
       setAddingAlbumId(null);
     }
+  }
+
+  function toggleTrackSelection(trackId: string) {
+    setSelectedTrackIds((current) => {
+      const next = new Set(current);
+      if (next.has(trackId)) {
+        next.delete(trackId);
+      } else {
+        next.add(trackId);
+      }
+      return next;
+    });
+  }
+
+  function toggleAllTracks() {
+    setSelectedTrackIds((current) => {
+      if (tracks.length > 0 && current.size === tracks.length) {
+        return new Set();
+      }
+      return new Set(tracks.map((track) => track.id));
+    });
+  }
+
+  function addSelectedTracks() {
+    if (selectedTracks.length === 0) {
+      return;
+    }
+    onAddSongs(selectedTracks);
+    setSelectedTrackIds(new Set());
   }
 
   return (
@@ -294,6 +336,14 @@ function ImportView({ cacheStore, favoriteIds, onAddSongs }: ImportViewProps) {
             <span>
               {tracks.length} 首曲目，已收藏 {selectedAlbumFavoriteCount} 首
             </span>
+            <button className="ghost-button compact-button" type="button" onClick={toggleAllTracks}>
+              <CheckSquare size={16} />
+              <span>{allTracksSelected ? "取消全选" : "全选"}</span>
+            </button>
+            <button className="secondary-button compact-button" type="button" onClick={addSelectedTracks} disabled={selectedTracks.length === 0}>
+              <Plus size={16} />
+              <span>导入选中 {selectedTracks.length}</span>
+            </button>
           </div>
         )}
 
@@ -302,6 +352,13 @@ function ImportView({ cacheStore, favoriteIds, onAddSongs }: ImportViewProps) {
             const saved = favoriteIds.has(track.id);
             return (
               <div key={track.id} className="track-row">
+                <label className="row-check" title="选择曲目">
+                  <input
+                    type="checkbox"
+                    checked={selectedTrackIds.has(track.id)}
+                    onChange={() => toggleTrackSelection(track.id)}
+                  />
+                </label>
                 <span className="track-position">{track.position}</span>
                 <div>
                   <strong>{track.title}</strong>

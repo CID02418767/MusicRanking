@@ -3,6 +3,7 @@ import type { Album, Artist, CacheStore, Song } from "../types";
 const MB_BASE = "https://musicbrainz.org/ws/2";
 const COVER_BASE = "https://coverartarchive.org";
 const REQUEST_INTERVAL_MS = 1100;
+const REQUEST_TIMEOUT_MS = 15000;
 const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
 const RELEASE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -108,11 +109,19 @@ function buildUrl(path: string, params: Record<string, string>): string {
 
 async function fetchJson<T>(url: string): Promise<T> {
   return enqueueRequest(async () => {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       throw new Error(`MusicBrainz 请求失败: ${response.status}`);
